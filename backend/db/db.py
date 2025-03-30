@@ -5,7 +5,7 @@ from sqlmodel import Session
 eng = 'cloudviewdb.db'
 
 # Construct the PostgreSQL URL
-db_url = f'postgresql://postgres:OEE*0Rb^@localhost:5432{eng}'
+db_url = f'postgresql://postgres:OEE*0Rb^@localhost:5432/{eng}'
 
 # Create the database engine with echo enabled for SQL logging
 engine = create_engine(db_url)
