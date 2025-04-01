@@ -7,6 +7,7 @@ from auth.auth import AuthHandler  # Import the authentication handler
 from db.db import session  # Import the shared database session
 from models.user_models import UserInput, User, UserLogin  # Import user models and schemas
 from repos.user_repos import select_all_users, find_user  # Import repository functions for user operations
+from config import *
 
 # Create an instance of APIRouter for user endpoints
 user_router = APIRouter()
@@ -45,8 +46,35 @@ def login(user: UserLogin):
     verified = auth_handler.verify_password(user.password, user_found.password)
     if not verified:
         raise HTTPException(status_code=401, detail='Invalid username and/or password')
-    token = auth_handler.encode_token(user_found.username)
-    return {'token': token}
+    access_token = auth_handler.encode_access_token(user_found.username)
+    refresh_token = auth_handler.encode_refresh_token(user_found.username)
+    
+    response = JSONResponse(content={
+        "access_token": access_token,
+        "token_type": "bearer"
+    })
+    
+    response.set_cookie(
+        key="refresh_token", 
+        value=refresh_token, 
+        httponly=True,   # Cookie is not accessible via JavaScript
+        secure=True,     # Make sure it works only over HTTPS
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # Expiry period in days
+        same_site="Strict"  # Prevents CSRF attacks
+    )
+    
+    return response
+
+@user_router.post("/refresh")
+def refresh_token(refresh_token: str):
+    """Generate a new access token using a valid refresh token."""
+    try:
+        user_id = auth_handler.decode_token(refresh_token)  # Decode the refresh token
+        new_access_token = auth_handler.encode_access_token(user_id)
+        return {"access_token": new_access_token, "token_type": "bearer"}
+    except HTTPException:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
 
 @user_router.get('/users/me', tags=['users'])
 def get_current_user(user: User = Depends(auth_handler.get_current_user)):

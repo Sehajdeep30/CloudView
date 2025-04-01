@@ -5,6 +5,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials  # For bea
 from passlib.context import CryptContext  # For password hashing and verification
 import jwt  # For encoding and decoding JWT tokens
 from starlette import status  # For HTTP status codes
+from config import *
 
 from repos.user_repos import find_user  # Custom repository function to retrieve a user from storage
 
@@ -14,8 +15,6 @@ class AuthHandler:
     security = HTTPBearer()
     # Create a password context with bcrypt scheme for secure password hashing
     pwd_context = CryptContext(schemes=['bcrypt'])
-    # Secret key used for JWT encoding/decoding;
-    secret = 'secret-key-CloudView'     '''*********Make It Secure*********'''
 
     def get_password_hash(self, password):
         """Hash the plain text password using bcrypt."""
@@ -25,19 +24,23 @@ class AuthHandler:
         """Verify a plain text password against the hashed version."""
         return self.pwd_context.verify(pwd, hashed_pwd)
 
-    def encode_token(self, user_id):
-        """
-        Encode a JWT token with an expiration time.
-        'exp' - expiration time (current UTC time + 8 hours)
-        'iat' - issued at time (current UTC time)
-        'sub' - subject (user id)
-        """
+    def encode_access_token(self, user_id):
+        """Generate an access token."""
         payload = {
-            'exp': datetime.now(timezone.utc) + datetime.timedelta(hours=8),
+            'exp': datetime.now(timezone.utc) + datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
             'iat': datetime.now(timezone.utc),
             'sub': user_id
         }
-        return jwt.encode(payload, self.secret, algorithm='HS256')
+        return jwt.encode(payload, SECRET_KEY, algorithm=HASH_ALGORITHM)
+
+    def encode_refresh_token(self, user_id):
+        """Generate the refresh token."""
+        payload = {
+            'exp': datetime.now(timezone.utc) + datetime.timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+            'iat': datetime.now(timezone.utc),
+            'sub': user_id
+        }
+        return jwt.encode(payload, SECRET_KEY, algorithm=HASH_ALGORITHM)
 
     def decode_token(self, token):
         """
@@ -45,7 +48,7 @@ class AuthHandler:
         Raises an HTTPException if the token is expired or invalid.
         """
         try:
-            payload = jwt.decode(token, self.secret, algorithms=['HS256'])
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[HASH_ALGORITHM])
             return payload['sub']
         except jwt.ExpiredSignatureError:
             raise HTTPException(status_code=401, detail='Expired signature')
@@ -53,9 +56,8 @@ class AuthHandler:
             raise HTTPException(status_code=401, detail='Invalid token')
 
     def auth_wrapper(self, auth: HTTPAuthorizationCredentials = Security(security)):
-        """
+        """ 
         Wrapper function that decodes the JWT token from the credentials.
-        This function can be used as a dependency in route handlers.
         """
         return self.decode_token(auth.credentials)
 
