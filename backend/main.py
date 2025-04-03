@@ -10,10 +10,5 @@ app = FastAPI()
 # app.include_router(gem_router)
 app.include_router(user_router)
 
-# Optionally, you can create database tables at startup by uncommenting the following:
-# def create_db_and_tables():
-#     SQLModel.metadata.create_all(engine)
-
 if __name__ == '__main__':
     uvicorn.run('main:app', host="localhost", port=8000, reload=True)
-    # create_db_and_tables()  # Uncomment this if you want to create tables on startup  

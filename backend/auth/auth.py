@@ -1,4 +1,4 @@
-from datetime import datetime,timezone  # For handling token expiry times
+from datetime import datetime, timedelta, timezone  
 
 from fastapi import Security, HTTPException  # FastAPI components for security and error handling
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials  # For bearer token extraction
@@ -27,7 +27,7 @@ class AuthHandler:
     def encode_access_token(self, user_id):
         """Generate an access token."""
         payload = {
-            'exp': datetime.now(timezone.utc) + datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+            'exp': datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
             'iat': datetime.now(timezone.utc),
             'sub': user_id
         }
@@ -36,7 +36,7 @@ class AuthHandler:
     def encode_refresh_token(self, user_id):
         """Generate the refresh token."""
         payload = {
-            'exp': datetime.now(timezone.utc) + datetime.timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+            'exp': datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
             'iat': datetime.now(timezone.utc),
             'sub': user_id
         }

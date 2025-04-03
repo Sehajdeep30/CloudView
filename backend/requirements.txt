@@ -3,7 +3,7 @@ sqlmodel
 uvicorn
 alembic
 pyJWT
-bcrypt
+bcrypt==3.2.0  #Older version to avoid issues with passlib
 passlib
 pydantic[email]
 psycopg2-binary #For PostgreSQL
