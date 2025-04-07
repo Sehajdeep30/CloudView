@@ -1,5 +1,5 @@
 import traceback
-from fastapi import APIRouter, HTTPException, Security, Depends
+from fastapi import APIRouter, HTTPException, Security, Depends, Response
 from fastapi.security import HTTPAuthorizationCredentials
 from starlette.responses import JSONResponse
 from starlette.status import HTTP_201_CREATED, HTTP_404_NOT_FOUND
@@ -9,6 +9,7 @@ from db.db import session  # Import the shared database session
 from models.user_models import UserInput, User, UserLogin  # Import user models and schemas
 from repos.user_repos import select_all_users, find_user  # Import repository functions for user operations
 from config import *
+
 
 # Create an instance of APIRouter for user endpoints
 user_router = APIRouter()
@@ -56,18 +57,23 @@ def login(user: UserLogin):
         access_token = auth_handler.encode_access_token(user_found.username)
         refresh_token = auth_handler.encode_refresh_token(user_found.username)
         
-        response = JSONResponse(content={
-            "access_token": access_token,
-            "token_type": "bearer"
-        })
+        response = JSONResponse(content={"token_type": "bearer"})
         
+        response.set_cookie(
+            key="access_token", 
+            value=access_token,
+            httponly=True,
+            secure=True,    # Use secure=True when in production over HTTPS
+            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # e.g., 15 minutes
+            samesite="Lax"
+        )
         response.set_cookie(
             key="refresh_token", 
             value=refresh_token, 
             httponly=True,   # Cookie is not accessible via JavaScript
             secure=True,     # Make sure it works only over HTTPS
             max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # Expiry period in days
-            # same_site="strict"  # Prevents CSRF attacks
+            # same_site="strict"  # Prevents CSRF attacks   
         )
     except Exception as e:
         print("ERROR:", str(e))  # Print error message
@@ -81,7 +87,16 @@ def refresh_token(refresh_token: str):
     try:
         user_id = auth_handler.decode_token(refresh_token)  # Decode the refresh token
         new_access_token = auth_handler.encode_access_token(user_id)
-        return {"access_token": new_access_token, "token_type": "bearer"}
+        response = JSONResponse(content={"token_type": "bearer"})
+        response.set_cookie(
+            key="access_token",
+            value=new_access_token,
+            httponly=True,
+            secure=True,
+            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            samesite="Lax"
+        )
+        return response
     except HTTPException:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
@@ -92,3 +107,12 @@ def get_current_user(user: User = Depends(auth_handler.get_current_user)):
     Retrieve the currently authenticated user.
     """
     return user
+
+@user_router.post("/users/logout", tags=["users"])
+def logout(response: Response):
+    """
+    Logs out the user by clearing the refresh token cookie.
+    """
+    response = JSONResponse(content={"message": "Logged out successfully"})
+    response.delete_cookie(key="refresh_token", httponly=True, secure=True)
+    return response

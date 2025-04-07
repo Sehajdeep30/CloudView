@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta, timezone  
-
-from fastapi import Security, HTTPException  # FastAPI components for security and error handling
+from fastapi import Security, HTTPException, Request # FastAPI components for security and error handling
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials  # For bearer token extraction
 from passlib.context import CryptContext  # For password hashing and verification
 import jwt  # For encoding and decoding JWT tokens
@@ -11,6 +10,7 @@ from repos.user_repos import find_user  # Custom repository function to retrieve
 
 # AuthHandler encapsulates all authentication related functions
 class AuthHandler:
+    
     # Initialize HTTPBearer for extracting token from request headers
     security = HTTPBearer()
     # Create a password context with bcrypt scheme for secure password hashing
@@ -61,19 +61,27 @@ class AuthHandler:
         """
         return self.decode_token(auth.credentials)
 
-    def get_current_user(self, auth: HTTPAuthorizationCredentials = Security(security)):
-        """
-        Retrieve the current user by decoding the token and then using the username to fetch user data.
-        Raises an exception if credentials cannot be validated or the user is not found.
-        """
-        credentials_exception = HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='Could not validate credentials'
-        )
-        username = self.decode_token(auth.credentials)
+
+    def get_current_user(self, request: Request):
+        token = request.cookies.get("access_token")
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='Access token not found in cookies'
+            )
+
+        username = self.decode_token(token)
         if username is None:
-            raise credentials_exception
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='Invalid or expired token'
+            )
+
         user = find_user(username)
         if user is None:
-            raise credentials_exception
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='User not found'
+            )
+
         return user
