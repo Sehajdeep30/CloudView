@@ -22,10 +22,13 @@ class UserInput(SQLModel):
     # Validator to ensure password and password2 match
 
     @field_validator("password2")
-    def password_match(cls, v, values: ValidationInfo):
-        if 'password' in values.data and v != values.data['password']:
-            raise ValueError('Passwords do not match')
-            return v
+    @classmethod
+    def passwords_match(cls, v, values: ValidationInfo):
+        password = values.data.get('password')
+        if password and v != password:
+            raise ValueError("Passwords do not match")
+        return v
+
 
 # Model for user login (only requires username and password)
 class UserLogin(SQLModel):

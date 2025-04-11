@@ -4,8 +4,7 @@ import { useAuth } from "../context/AuthProvider";
 
 const PrivateRoute = () => {
     const { user } = useAuth();
-    //   return user ? <Outlet /> : <Navigate to="/login" />;
-    console.log(user)
+      return user ? <Outlet /> : <Navigate to="/login" />;
 };
 
 export default PrivateRoute;

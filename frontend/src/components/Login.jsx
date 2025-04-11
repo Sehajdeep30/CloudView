@@ -31,7 +31,7 @@ function Login() {
         setLoading(true);
 
         try {
-            const response = await apiClient.post('/login', { username, password });
+            const response = await apiClient.post('/login', {username, password } );
             const userData = await apiClient.get('/users/me');
             setUser(userData);
             setLoading(false);
@@ -61,6 +61,11 @@ function Login() {
                         onChange={(e) => setPassword(e.target.value)}
                     />
                 </div>
+                <br></br><br></br>
+                <button>
+                    <a href='/register'>Register Here</a>
+                </button>
+                <br></br><br></br>
                 <button type="submit" disabled={loading}>
                     {loading ? 'Logging in...' : 'Login'}
                 </button>
