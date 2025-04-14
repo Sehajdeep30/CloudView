@@ -14,13 +14,15 @@ apiClient.interceptors.response.use(
   (response) => response.data,
   async (error) => {
     const originalRequest = error.config;
-    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+    if (error.response && error.response.status === 401 && !originalRequest._retry && originalRequest.url !== "/refresh"
+    ) {
       originalRequest._retry = true;
       try {
         const refreshResponse = await apiClient.post("/refresh");
         return apiClient(originalRequest);
       } catch (refreshError) {
         // If the refresh request fails, reject the promise.
+        localStorage.setItem("reloadFlag", "0");
         return Promise.reject(refreshError);
       }
     }

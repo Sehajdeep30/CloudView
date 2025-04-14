@@ -28,6 +28,7 @@ function Register() {
         return true;
     };
 
+
     const handleSubmit = async (event) => {
         event.preventDefault();
         if (!validateForm()) return;
@@ -35,13 +36,14 @@ function Register() {
 
         try {
             console.log("Registering user:", username, email);
-            const response = await apiClient.post('/registration', { username, password, password2, email });
+            await apiClient.post('/registration', { username, password, password2, email });
             console.log("registered");
             setLoading(false);
             navigate('/login');  // Redirect after registeration
         } catch (error) {
+            console.log(error);
             setLoading(false);
-            setError(error.response?.data?.detail[0].msg?"Enter a valid email address": 'Registration failed!');
+            setError(error.response?.data?.detail || 'Authentication failed!');
         }
     };
 

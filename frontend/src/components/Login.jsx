@@ -29,18 +29,25 @@ function Login() {
         event.preventDefault();
         if (!validateForm()) return;
         setLoading(true);
-
+      
         try {
-            const response = await apiClient.post('/login', {username, password } );
-            const userData = await apiClient.get('/users/me');
-            setUser(userData);
-            setLoading(false);
-            navigate('/dashboard');  // Redirect after login
+          await apiClient.post('/login', { username, password });
+      
+          // Mark the session as persistent
+          localStorage.setItem("reloadFlag", "1");
+      
+          // Fetch and set user data
+          const userData = await apiClient.get('/users/me');
+          setUser(userData);
+      
+          setLoading(false);
+          navigate('/dashboard');  // Redirect on successful login
         } catch (error) {
-            setLoading(false);
-            setError(error.response?.data?.detail || 'Authentication failed!');
+          setLoading(false);
+          setError(error.response?.data?.detail || 'Authentication failed!');
         }
-    };
+      };
+      
 
     return (
         <div>

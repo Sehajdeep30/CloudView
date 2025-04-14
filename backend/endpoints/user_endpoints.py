@@ -1,5 +1,5 @@
 import traceback
-from fastapi import APIRouter, HTTPException, Security, Depends, Response
+from fastapi import APIRouter, HTTPException, Depends, Response, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from starlette.responses import JSONResponse
 from starlette.status import HTTP_201_CREATED, HTTP_404_NOT_FOUND
@@ -63,18 +63,19 @@ def login(user: UserLogin):
             key="access_token", 
             value=access_token,
             httponly=True,
-            secure=True,    # Use secure=True when in production over HTTPS
+            secure=DEBUG,    # Use secure=True when in production over HTTPS
             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # e.g., 15 minutes
-            samesite="Lax"
+            path = "/"
         )
         response.set_cookie(
             key="refresh_token", 
             value=refresh_token, 
             httponly=True,   # Cookie is not accessible via JavaScript
-            secure=True,     # Make sure it works only over HTTPS
+            secure=DEBUG,    # Use secure=True when in production over HTTPS
             max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # Expiry period in days
-            # same_site="strict"  # Prevents CSRF attacks   
+            path = "/"
         )
+        
     except Exception as e:
         print("ERROR:", str(e))  # Print error message
         traceback.print_exc()  # Print full stack trace
@@ -82,8 +83,11 @@ def login(user: UserLogin):
     return response
 
 @user_router.post("/refresh", tags=['users'])
-def refresh_token(refresh_token: str):
+def refresh_token(request:Request):
     """Generate a new access token using a valid refresh token."""
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="No refresh token in cookies")
     try:
         user_id = auth_handler.decode_token(refresh_token)  # Decode the refresh token
         new_access_token = auth_handler.encode_access_token(user_id)
@@ -92,9 +96,9 @@ def refresh_token(refresh_token: str):
             key="access_token",
             value=new_access_token,
             httponly=True,
-            secure=True,
+            secure=DEBUG,    # Use secure=True when in production over HTTPS
             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-            samesite="Lax"
+            path = "/"
         )
         return response
     except HTTPException:
@@ -115,4 +119,5 @@ def logout(response: Response):
     """
     response = JSONResponse(content={"message": "Logged out successfully"})
     response.delete_cookie(key="refresh_token", httponly=True, secure=True)
+    response.delete_cookie(key="access_token", httponly=True, secure=True)
     return response

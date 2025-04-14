@@ -1,31 +1,27 @@
 from datetime import datetime, timedelta, timezone  
-from fastapi import Security, HTTPException, Request # FastAPI components for security and error handling
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials  # For bearer token extraction
-from passlib.context import CryptContext  # For password hashing and verification
-import jwt  # For encoding and decoding JWT tokens
-from starlette import status  # For HTTP status codes
-from config import *
+from fastapi import HTTPException, Request, Depends  
+from passlib.context import CryptContext  
+import jwt  
+from starlette import status  
 
-from repos.user_repos import find_user  # Custom repository function to retrieve a user from storage
+from config import SECRET_KEY, HASH_ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS  
+from repos.user_repos import find_user  
 
-# AuthHandler encapsulates all authentication related functions
 class AuthHandler:
-    
-    # Initialize HTTPBearer for extracting token from request headers
-    security = HTTPBearer()
-    # Create a password context with bcrypt scheme for secure password hashing
-    pwd_context = CryptContext(schemes=['bcrypt'])
+    """
+    AuthHandler now uses HttpOnly cookies for access & refresh tokens.
+    No more HTTPBearer header extraction.
+    """
 
-    def get_password_hash(self, password):
-        """Hash the plain text password using bcrypt."""
+    pwd_context = CryptContext(schemes=['bcrypt'])  # bcrypt for password hashing
+
+    def get_password_hash(self, password: str) -> str:
         return self.pwd_context.hash(password)
 
-    def verify_password(self, pwd, hashed_pwd):
-        """Verify a plain text password against the hashed version."""
-        return self.pwd_context.verify(pwd, hashed_pwd)
+    def verify_password(self, plain: str, hashed: str) -> bool:
+        return self.pwd_context.verify(plain, hashed)
 
-    def encode_access_token(self, user_id):
-        """Generate an access token."""
+    def encode_access_token(self, user_id: str) -> str:
         payload = {
             'exp': datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
             'iat': datetime.now(timezone.utc),
@@ -33,8 +29,7 @@ class AuthHandler:
         }
         return jwt.encode(payload, SECRET_KEY, algorithm=HASH_ALGORITHM)
 
-    def encode_refresh_token(self, user_id):
-        """Generate the refresh token."""
+    def encode_refresh_token(self, user_id: str) -> str:
         payload = {
             'exp': datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
             'iat': datetime.now(timezone.utc),
@@ -42,46 +37,33 @@ class AuthHandler:
         }
         return jwt.encode(payload, SECRET_KEY, algorithm=HASH_ALGORITHM)
 
-    def decode_token(self, token):
-        """
-        Decode a JWT token.
-        Raises an HTTPException if the token is expired or invalid.
-        """
+    def decode_token(self, token: str) -> str:
         try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[HASH_ALGORITHM])
-            return payload['sub']
+            data = jwt.decode(token, SECRET_KEY, algorithms=[HASH_ALGORITHM])
+            return data['sub']
         except jwt.ExpiredSignatureError:
-            raise HTTPException(status_code=401, detail='Expired signature')
+            raise HTTPException(status_code=401, detail='Expired token')
         except jwt.InvalidTokenError:
             raise HTTPException(status_code=401, detail='Invalid token')
 
-    def auth_wrapper(self, auth: HTTPAuthorizationCredentials = Security(security)):
-        """ 
-        Wrapper function that decodes the JWT token from the credentials.
-        """
-        return self.decode_token(auth.credentials)
-
-
     def get_current_user(self, request: Request):
+        """
+        Dependency to inject the current user based on the 'access_token' cookie.
+        """
         token = request.cookies.get("access_token")
         if not token:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail='Access token not found in cookies'
+                detail="Not authenticated",
+                headers={"WWW-Authenticate": "Bearer"},
             )
 
-        username = self.decode_token(token)
-        if username is None:
+        user_id = self.decode_token(token)
+        user = find_user(user_id)
+        if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail='Invalid or expired token'
+                detail="User not found",
+                headers={"WWW-Authenticate": "Bearer"},
             )
-
-        user = find_user(username)
-        if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail='User not found'
-            )
-
         return user

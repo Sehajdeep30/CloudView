@@ -5,31 +5,43 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const checkUser = async () => {
+    try {
+      const response = await apiClient.get("/users/me");
+      console.log("inifinite")
+      setUser(response);
+    } catch (error) {
+      setUser(null);
+      localStorage.setItem("reloadFlag", "0");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const checkUser = async () => {
-      try {
-        const userData = await apiClient.get("/users/me");
-        setUser(userData);
-      } catch (error) {
-        setUser(null);
-      }
-    };
-    checkUser();
+    const reloadFlag = localStorage.getItem("reloadFlag");
+    if (reloadFlag === "1") {
+      checkUser();
+    } else {
+      setLoading(false);
+    }
   }, []);
 
   const logout = async () => {
     try {
-      await apiClient.post("/users/logout"); // or whatever your logout route is
+      await apiClient.post("/users/logout");
     } catch (err) {
       console.error("Logout failed:", err);
     } finally {
+      localStorage.setItem("reloadFlag", "0");
       setUser(null);
     }
   };
-  
+
   return (
-    <AuthContext.Provider value={{ user, setUser, logout }}>
+    <AuthContext.Provider value={{ user, setUser, loading, checkUser, logout }}>
       {children}
     </AuthContext.Provider>
   );
