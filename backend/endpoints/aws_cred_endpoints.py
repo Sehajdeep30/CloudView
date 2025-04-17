@@ -15,7 +15,7 @@ aws_router = APIRouter()
 auth_handler = AuthHandler()
 aws_handler = AwsHandler()
 
-@aws_router.get('/loading_aws_data', status_code=HTTP_200_OK, tags=['aws_cred'],
+@aws_router.get('/aws_cred/status', status_code=HTTP_200_OK, tags=['aws_cred'],
                   description='Loading aws account credentials based on user id')
 def load_aws_data(user: User = Depends(auth_handler.get_current_user)):
     """
@@ -33,9 +33,22 @@ def load_aws_data(user: User = Depends(auth_handler.get_current_user)):
         print("ERROR:", str(e))
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Could not load AWS data")
-
     
-@aws_router.post('/set_aws_data', status_code=HTTP_201_CREATED, tags=['aws_cred'],
+@aws_router.post('/aws_cred/launch_url', tags=['aws_cred'],
+                 description="This endpoint is used to create the launch URL")
+def generate_stack_url(policy_arns: list[str],user: User = Depends(auth_handler.get_current_user)):
+    """
+    Generate a secure CloudFormation stack URL for the user with the provided policy ARNs.
+    """
+    try:
+        launch_url = aws_handler.set_template_url(user.id,policy_arns)
+        return {"launch_url": launch_url}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Failed to generate CloudFormation URL")
+    
+    
+@aws_router.post('/aws_cred/add_role', status_code=HTTP_201_CREATED, tags=['aws_cred'],
                   description='Setting up aws account credentials using user input')
 def set_aws_data(aws_credentials:UserAWSRoleInput,user: User = Depends(auth_handler.get_current_user)):
     """

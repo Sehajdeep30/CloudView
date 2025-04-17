@@ -61,7 +61,7 @@ def login(user: UserLogin):
             key="access_token", 
             value=access_token,
             httponly=True,
-            secure=DEBUG,    # Use secure=True when in production over HTTPS
+            secure=IS_HTTPS,    # Use secure=True when in production over HTTPS
             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # e.g., 15 minutes
             path = "/"
         )
@@ -69,7 +69,7 @@ def login(user: UserLogin):
             key="refresh_token", 
             value=refresh_token, 
             httponly=True,   # Cookie is not accessible via JavaScript
-            secure=DEBUG,    # Use secure=True when in production over HTTPS
+            secure=IS_HTTPS,    # Use secure=True when in production over HTTPS
             max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # Expiry period in days
             path = "/"
         )
@@ -94,7 +94,7 @@ def refresh_token(request:Request):
             key="access_token",
             value=new_access_token,
             httponly=True,
-            secure=DEBUG,    # Use secure=True when in production over HTTPS
+            secure=IS_HTTPS,    # Use secure=True when in production over HTTPS
             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             path = "/"
         )

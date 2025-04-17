@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Creates an IAM Role your app can assume in the user’s account
+
+Parameters:
+  AppAccountId:
+    Type: String
+    Description: Your application's AWS Account ID
+  ExternalId:
+    Type: String
+    Description: External ID to bind this trust to a specific application
+  ManagedPolicyArns:
+    Type: CommaDelimitedList
+    Default: arn:aws:iam::aws:policy/ReadOnlyAccess
+    Description: List of managed policy ARNs to attach to the role
+
+Resources:
+  CloudViewAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: CloudViewAccessRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AppAccountId}:root
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Ref ExternalId
+      ManagedPolicyArns: !Ref ManagedPolicyArns
+
+Outputs:
+  RoleArn:
+    Description: The ARN of the created IAM role
+    Value: !GetAtt CloudViewAccessRole.Arn
+  ExternalId:
+    Value: !Ref ExternalId
