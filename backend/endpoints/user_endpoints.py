@@ -5,9 +5,8 @@ from starlette.responses import JSONResponse
 from starlette.status import HTTP_201_CREATED, HTTP_404_NOT_FOUND
 import datetime
 from auth.auth import AuthHandler  # Import the authentication handler
-from db.db import session  # Import the shared database session
 from models.user_models import UserInput, User, UserLogin  # Import user models and schemas
-from repos.user_repos import select_all_users, find_user  # Import repository functions for user operations
+from repos.user_repos import select_all_users, find_user,set_user  # Import repository functions for user operations
 from config import *
 
 
@@ -30,10 +29,9 @@ def register(user: UserInput):
         if any(x.username == user.username for x in users):
             raise HTTPException(status_code=400, detail='Username is taken')
         hashed_pwd = auth_handler.get_password_hash(user.password)  # Hash the password
-        # Create a new User object; 🔹 CUSTOMIZE fields as necessary
+        # Create a new User object
         u = User(username=user.username, password=hashed_pwd, email=user.email,created_at= datetime.datetime.now(datetime.timezone.utc))
-        session.add(u)
-        session.commit()
+        set_user(u)
         return JSONResponse(status_code=HTTP_201_CREATED, content={"message": "User registered successfully"})
     except Exception as e:
         print("ERROR:", str(e))  # Print error message

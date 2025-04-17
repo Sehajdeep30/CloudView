@@ -21,3 +21,12 @@ def find_user(name):
     with Session(engine) as session:
         statement = select(User).where(User.username == name)
         return session.exec(statement).first()
+    
+def set_user(user):
+    """
+    Sets up the user in the database
+    """
+    
+    with Session(engine) as session:
+        session.add(user)
+        session.commit()

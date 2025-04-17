@@ -23,6 +23,7 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         // If the refresh request fails, reject the promise.
         localStorage.setItem("reloadFlag", "0");
+        console.error("Interceptor error:", error.response?.data || error.message);
         return Promise.reject(refreshError);
       }
     }

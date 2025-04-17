@@ -1,12 +1,12 @@
 from fastapi import FastAPI
 import uvicorn
 from endpoints.user_endpoints import user_router  # Import user-related endpoints
+from endpoints.aws_cred_endpoints import aws_router #Import aws-manager endpoints
 from fastapi.middleware.cors import CORSMiddleware
 
 
 app = FastAPI()
 
-from fastapi.middleware.cors import CORSMiddleware
 
 origins = [
     "http://localhost:5173",  # Vite default dev server port
@@ -25,6 +25,7 @@ app.add_middleware(
 
 
 app.include_router(user_router)
+app.include_router(aws_router)
 
 if __name__ == '__main__':
     uvicorn.run('main:app', host="localhost", port=8000, reload=True)
