@@ -10,7 +10,6 @@ export const AuthProvider = ({ children }) => {
   const checkUser = async () => {
     try {
       const response = await apiClient.get("/users/me");
-      console.log("inifinite")
       setUser(response);
     } catch (error) {
       setUser(null);

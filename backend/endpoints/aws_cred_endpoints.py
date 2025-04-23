@@ -1,5 +1,5 @@
 import traceback
-from fastapi import APIRouter, HTTPException, Depends, Response, Request
+from fastapi import APIRouter, HTTPException, Depends,Body, Response, Request
 from starlette.responses import JSONResponse
 from starlette.status import HTTP_200_OK, HTTP_201_CREATED
 from models.aws_cred_models import UserAWSRole,UserAWSRoleInput
@@ -17,7 +17,7 @@ aws_handler = AwsHandler()
 
 @aws_router.get('/aws_cred/status', status_code=HTTP_200_OK, tags=['aws_cred'],
                   description='Loading aws account credentials based on user id')
-def load_aws_data(user: User = Depends(auth_handler.get_current_user)):
+def load_aws_status(user: User = Depends(auth_handler.get_current_user)):
     """
     loads up server aws account information.
     Also checks if the user arn is already connected or not
@@ -36,7 +36,7 @@ def load_aws_data(user: User = Depends(auth_handler.get_current_user)):
     
 @aws_router.post('/aws_cred/launch_url', tags=['aws_cred'],
                  description="This endpoint is used to create the launch URL")
-def generate_stack_url(policy_arns: list[str],user: User = Depends(auth_handler.get_current_user)):
+def generate_stack_url(policy_arns: list[str] = Body(..., embed=True),user: User = Depends(auth_handler.get_current_user)):
     """
     Generate a secure CloudFormation stack URL for the user with the provided policy ARNs.
     """

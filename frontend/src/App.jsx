@@ -6,6 +6,7 @@ import Register from "./components/Register"
 import PrivateRoute from "./routes/PrivateRoute";
 import Dashboard from "./components/Dashboard";
 import TestEl from "./components/TestEl";
+import SetAwsCred from "./components/SetAwsCred/SetAwsCred";
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
           <Route element={<PrivateRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/tester" element={<TestEl />} />
+            <Route path="/aws_cred/setup" element={<SetAwsCred />} />
           </Route>
         </Routes>
       </Router>
