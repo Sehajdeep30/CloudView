@@ -65,3 +65,20 @@ export function useAwsCredService() {
     }
     return { createLaunchUrl, addRole };
 }
+
+export async function checkAwsCred (){
+        try {
+            const response = await apiClient.get("/aws_cred/status");
+            const is_aws_cred_valid = response.isUserAwsHandlerSet;
+            return is_aws_cred_valid;
+        }
+        catch (error) {
+            console.error("Full error:", error);
+            if (error.response?.status == 401) {
+                navigate("/login");
+            }
+            else {
+                alert("We are facing server errors. Try Again Later");
+            }
+        }
+    }

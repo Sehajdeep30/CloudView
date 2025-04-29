@@ -1,45 +1,34 @@
 import { useAuth } from "../context/AuthProvider";
 import { useNavigate } from 'react-router-dom';
-import { useEffect } from "react";
-import apiClient from "../api/api";
+import { useState,useEffect } from "react";
+import { checkAwsCred } from "./SetAwsCred/AwsCredsUtils";
+
 
 function Dashboard() {
     const { logout } = useAuth();
     const navigate = useNavigate();
 
-    const checkAwsCred = async () => {
-        try {
-            const response = await apiClient.get("/aws_cred/status");
-            const is_aws_cred_valid = response.isUserAwsHandlerSet;
-            return is_aws_cred_valid;
-        }
-        catch (error) {
-            console.error("Full error:", error);
-            if (error.response?.status == 401) {
-                navigate("/login");
-            }
-            else {
-                alert("We are facing server errors. Try Again Later");
-            }
-        }
-    }
-
 
     useEffect(() => {
-        checkAwsCred().then((res) => {
-            const is_aws_cred_valid = res;
-            console.log(is_aws_cred_valid);
-            if (is_aws_cred_valid) {
+        const verify = async () => {
+          try {
+            const isValid = await checkAwsCred();
+            console.log("AWS cred valid?", isValid);
+            if (!isValid) {
+              alert(
+                "Your AWS account is not connected. Redirecting you to setup page…"
+              );
+              navigate("/aws_cred/setup");
             }
-            else {
-                navigate("/aws_cred/setup");
-            }
-        }).catch((err) => {
-            console.log(err);
-        })
+          } catch (err) {
+            console.error("Error verifying AWS creds:", err);
+          }
+          finally{
+          }
+        };
 
-
-    }, []);
+        verify();
+      }, []);
 
     const logoutHandler = () => {
         logout();
@@ -49,6 +38,7 @@ function Dashboard() {
     return (<>
         <h1>Welcome to the dashboard</h1>
         <button onClick={logoutHandler}>Logout</button>
+        
         <a href="/tester">go to tester</a>
 
     </>);

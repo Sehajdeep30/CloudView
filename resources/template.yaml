@@ -30,6 +30,26 @@ Resources:
                 sts:ExternalId: !Ref ExternalId
       ManagedPolicyArns: !Ref ManagedPolicyArns
 
+  CloudViewManagementPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudViewLimitedIamControl
+      Roles:
+        - !Ref CloudViewAccessRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowLimitedIAMManagementForCloudViewRole
+            Effect: Allow
+            Action:
+              - iam:AttachRolePolicy
+              - iam:DetachRolePolicy
+              - iam:ListAttachedRolePolicies
+              - iam:GetRole
+              - iam:GetRolePolicy
+              - iam:ListRolePolicies
+            Resource: !GetAtt CloudViewAccessRole.Arn
+
 Outputs:
   RoleArn:
     Description: The ARN of the created IAM role
