@@ -1,74 +1,94 @@
 import boto3
 import textwrap
 from datetime import datetime, timedelta,timezone
-from config import TEMPLATE_URL, STACK_NAME, ACCOUNT_ID
+from config import TEMPLATE_URL, STACK_NAME, ACCOUNT_ID, EXTERNAL_ID
 from urllib.parse import quote_plus
-from backend.aws_manager.iam import IamHandler
+from aws_manager.iam import IamHandler
+from repos.aws_cred_repos import get_aws_role
 
 
 class AwsHandler():
-    def __init__(self, session: boto3.Session = None):
+    def __init__(self):
         self.user_id = 0
         self.role_arn = ''
         self.policies = ''
-        self.__external_id = ''
-        self.__session = session or boto3.Session(``)
+        self._external_id = ''
+        self.__session = boto3.Session()
         self.expiry_time = None
-        self.aws_handler = None
         self._clients = {}
+        self.hello = ""
         
+    @staticmethod
+    def get_aws_handler() -> "AwsHandler":
+        return AwsHandler()
     
-    def set_aws_role(self,user_id,role_arn,policy_arn):
-        self.user_id = user_id
-        self.role_arn = role_arn
+    def set_template_url(self,user_id,policy_arn) -> str:
         policies = ",".join(policy_arn)
-        self.policies = policies
-        self.__external_id = f"safe-id-is-{user_id}"
-        self._clients.clear()
-        self.set_aws_session()
-        
-        
-    def remove_aws_role(self):
-        self.__init__()  
-    
-    def set_template_url(self,user_id,policy_arn):
-        policies = ",".join(policy_arn)
+        external_id = EXTERNAL_ID+str(user_id)
         launch_url = textwrap.dedent(f"""\
             https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review
             ?templateURL={quote_plus(TEMPLATE_URL)}
             &stackName={quote_plus(STACK_NAME)}
-            &param_ExternalId={quote_plus(self.__external_id)}
+            &param_ExternalId={quote_plus(external_id)}
             &param_AppAccountId={quote_plus(ACCOUNT_ID)}
             &param_ManagedPolicyArns={quote_plus(policies)}
         """).replace("\n", "")
         
         return launch_url
 
-    def set_aws_session(self):
-        sts = self.__session.client('sts')
-        
-        response = sts.assume_role(
-        RoleArn=self.role_arn,
-        ExternalId=self.__external_id,
+
+    def assume_role(self, user_id: int, role_arn: str, policies: str):
+
+        # Load from DB if first time
+        if role_arn is None or policies is None:
+            record = get_aws_role(user_id)
+            
+            if not record:
+                raise ValueError("No AWS role configured for this user")
+            
+            role_arn, policies = record["role_arn"], record["policies"]
+            
+        # Save state
+        self.user_id      = user_id
+        self.role_arn     = role_arn
+        self.policies     = policies
+        self._external_id = EXTERNAL_ID + str(user_id)
+        # STS call
+        sts_creds = self._session.client("sts").assume_role(
+            RoleArn         = self.role_arn,
+            ExternalId      = self._external_id,
+            RoleSessionName = f"cv-{user_id}"
         )["Credentials"]
-        
-        user_session = boto3.Session(
-            aws_access_key_id=response['AccessKeyId'],
-            aws_secret_access_key=response['SecretAccessKey'],
-            aws_session_token=response['SessionToken']
+
+        # Session overwrite
+        self._session     = boto3.Session(
+            aws_access_key_id     = sts_creds["AccessKeyId"],
+            aws_secret_access_key = sts_creds["SecretAccessKey"],
+            aws_session_token     = sts_creds["SessionToken"]
         )
-        
-        self.expiry_time = response['Expiration']
-        self.aws_handler = AwsHandler(session=user_session)
-        
-    def get_handler(self):
-        if not self.expiry_time or datetime.now(timezone.utc) > self.expiry_time - timedelta(minutes=5):
-            self._clients.clear()
-            self.set_aws_role()
-        return self.aws_handler
-     
+        self._expiry_time  = sts_creds["Expiration"]
+        self._clients.clear()
+
+    def refresh_if_needed(self) -> None:
+        """If within 5 minutes of expiry (or never assumed) → re-assume role."""
+        if (self._expiry_time is None or
+            datetime.now(timezone.utc) > self._expiry_time - timedelta(minutes=5)):
+            self.assume_role(self.user_id, self.role_arn, self.policies)
+                 
     @property   
     def iam(self) -> IamHandler:
+        self.refresh_if_needed()
         if 'iam' not in self._clients:
-            self._clients['iam'] = IamHandler(self.__session.client('iam'))
+            self._clients['iam'] = IamHandler(self.__session.client('iam'),self.__session.client('cloudformation'))
         return self._clients['iam']
+        
+        
+    def remove_aws_role(self):
+        self.user_id       = None
+        self.role_arn      = None
+        self.policies      = None
+        self._external_id = None
+        self.expiry_time   = None
+        self._clients.clear()        
+            
+

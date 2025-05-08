@@ -13,4 +13,5 @@ HASH_ALGORITHM = os.getenv("HASH_ALGORITHM")
 IS_HTTPS = False 
 STACK_NAME = os.getenv("STACK_NAME")
 ACCOUNT_ID = os.getenv("ACCOUNT_ID")
+EXTERNAL_ID = os.getenv("EXTERNAL_ID")
 TEMPLATE_URL = os.getenv("TEMPLATE_URL")
